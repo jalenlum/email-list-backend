@@ -2,8 +2,9 @@ const express = require("express");
 const { Client } = require("pg");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
-const app = express();
+const jwt = require("jsonwebtoken");
 const dotenv = require("dotenv");
+const app = express();
 
 dotenv.config();
 
@@ -44,7 +45,9 @@ app.post("/signup", async (req, res) => {
     const checkUserResult = await client.query(checkUserQuery, [email]);
 
     if (checkUserResult.rows.length > 0) {
-      return res.status(400).json({ message: "This user already exists" });
+      return res
+        .status(400)
+        .json({ message: "This email is already associated with an account" });
     }
 
     // Checks if username already exists
@@ -56,7 +59,7 @@ app.post("/signup", async (req, res) => {
     if (checkUserNameResult.rows.length > 0) {
       return res
         .status(400)
-        .json({ message: "This username is already exists" });
+        .json({ message: "This username is already taken" });
     }
 
     // Hashes password
@@ -79,13 +82,59 @@ app.post("/signup", async (req, res) => {
   }
 });
 
+app.post("/signin", async (req, res) => {
+  const { inputName, password } = req.body;
+
+  if (!inputName || !password) {
+    return res
+      .status(400)
+      .json({ message: "Username/email and password are required" });
+  }
+
+  try {
+    // Checks if the input is username or email format
+    let signInQuery;
+    if (inputName.includes("@")) {
+      signInQuery = "SELECT * FROM users WHERE email = $1";
+    } else {
+      signInQuery = "SELECT * FROM users WHERE username = $1";
+    }
+
+    const signInResult = await client.query(signInQuery, [inputName]);
+
+    if (signInResult.rows.length === 0) {
+      return res
+        .status(401)
+        .json({ message: "Invalid username/email or password" });
+    }
+
+    const user = signInResult.rows[0];
+
+    const passwordMatch = await bcrypt.compare(password, user.password_hash);
+
+    if (!passwordMatch) {
+      return res
+        .status(401)
+        .json({ message: "Invalid username/email or password" });
+    }
+
+    const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
+      expiresIn: "1h",
+    });
+    res.status(200).json({ token });
+  } catch (err) {
+    console.error("Error signing in:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
 app.get("/get-users", async (req, res) => {
   try {
     const getUsersQuery = "SELECT * FROM users";
     const getUsersResult = await client.query(getUsersQuery);
     res.status(200).json(getUsersResult.rows);
-  } catch (error) {
-    console.error("Error fetching users:", error);
+  } catch (err) {
+    console.error("Error fetching users:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
