@@ -3,6 +3,8 @@ const { Client } = require("pg");
 const bcrypt = require("bcrypt");
 const cors = require("cors");
 const jwt = require("jsonwebtoken");
+const nodemailer = require("nodemailer");
+const crypto = require("crypto");
 const dotenv = require("dotenv");
 const app = express();
 
@@ -30,6 +32,33 @@ const client = new Client({
 });
 
 client.connect();
+
+const transporter = nodemailer.createTransport({
+  host: process.env.EMAIL_HOST,
+  port: process.env.EMAIL_PORT,
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS,
+  },
+});
+
+const sendVerificationEmail = (userEmail, token) => {
+  const url = `http://localhost:8080/verify-email?token=${token}`;
+  const mailOptions = {
+    from: process.env.EMAIL_USER,
+    to: userEmail,
+    subject: "Email Verification",
+    text: `Please verify your email by clicking the following link: ${url}`,
+    html: `<p>Please verify your email by clicking the following link: <a href="${url}">${url}</a></p>`,
+  };
+
+  transporter.sendMail(mailOptions, (error, info) => {
+    if (error) {
+      return console.log(error);
+    }
+    console.log("Verification email sent: %s", info.response);
+  });
+};
 
 app.post("/signup", async (req, res) => {
   const { username, email, password } = req.body;
@@ -64,20 +93,48 @@ app.post("/signup", async (req, res) => {
 
     // Hashes password
     const passwordHash = await bcrypt.hash(password, 13);
+    const token = crypto.randomBytes(32).toString("hex");
 
     // Inserts user into the database
     const insertUserQuery =
-      "INSERT INTO users (username, email, password_hash, created_at) VALUES ($1, $2, $3, NOW()) RETURNING id, username, email, created_at";
+      "INSERT INTO users (username, email, password_hash, created_at, is_verified) VALUES ($1, $2, $3, NOW(), FALSE) RETURNING id, username, email, created_at";
     const insertUserResult = await client.query(insertUserQuery, [
       username,
       email,
       passwordHash,
     ]);
 
+    sendVerificationEmail(email, token);
+
     const newUser = insertUserResult.rows[0];
     res.status(201).json(newUser);
   } catch (err) {
     console.error("Error during signup:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.get("/verify-email", async (req, res) => {
+  const { token } = req.query;
+
+  if (!token) {
+    return res.status(400).json({ message: "Invalid token" });
+  }
+
+  try {
+    // Here you would normally verify the token and find the user associated with it
+    // For simplicity, let's assume the token is the user's email
+
+    const updateQuery = "UPDATE users SET is_verified = TRUE WHERE email = $1";
+    const updateResult = await client.query(updateQuery, [token]);
+
+    if (updateResult.rowCount === 0) {
+      return res.status(400).json({ message: "Invalid token" });
+    }
+
+    res.status(200).json({ message: "Email verified successfully" });
+  } catch (err) {
+    console.error("Error during email verification:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
@@ -116,6 +173,10 @@ app.post("/signin", async (req, res) => {
       return res
         .status(401)
         .json({ message: "Invalid username/email or password" });
+    }
+
+    if (!user.is_verified) {
+      return res.status(400).json({ message: "Email not verified" });
     }
 
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
