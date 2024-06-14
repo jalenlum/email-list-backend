@@ -43,7 +43,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendVerificationEmail = (userEmail, token) => {
-  const url = `http://localhost:8080/verify-email?token=${token}`;
+  const url = `http://localhost:8080/verify-email?token=${encodeURIComponent(token)}`;
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: userEmail,
@@ -96,14 +96,19 @@ app.post("/signup", async (req, res) => {
     const token = crypto.randomBytes(32).toString("hex");
 
     // Inserts user into the database
-    const insertUserQuery =
-      "INSERT INTO users (username, email, password_hash, created_at, is_verified) VALUES ($1, $2, $3, NOW(), FALSE) RETURNING id, username, email, created_at";
+    const insertUserQuery = `
+    INSERT INTO users (username, email, password_hash, created_at, is_verified, token)
+    VALUES ($1, $2, $3, NOW(), FALSE, $4)
+    RETURNING id, username, email, created_at
+  `;
     const insertUserResult = await client.query(insertUserQuery, [
       username,
       email,
       passwordHash,
+      token,
     ]);
 
+    // Send verification email
     sendVerificationEmail(email, token);
 
     const newUser = insertUserResult.rows[0];
@@ -125,7 +130,7 @@ app.get("/verify-email", async (req, res) => {
     // Here you would normally verify the token and find the user associated with it
     // For simplicity, let's assume the token is the user's email
 
-    const updateQuery = "UPDATE users SET is_verified = TRUE WHERE email = $1";
+    const updateQuery = "UPDATE users SET is_verified = TRUE WHERE token = $1 RETURNING email";
     const updateResult = await client.query(updateQuery, [token]);
 
     if (updateResult.rowCount === 0) {
