@@ -196,14 +196,3 @@ app.post("/signin", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
-
-app.get("/get-users", async (req, res) => {
-  try {
-    const getUsersQuery = "SELECT * FROM users";
-    const getUsersResult = await client.query(getUsersQuery);
-    res.status(200).json(getUsersResult.rows);
-  } catch (err) {
-    console.error("Error fetching users:", err);
-    res.status(500).json({ message: "Internal server error" });
-  }
-});
