@@ -43,7 +43,9 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendVerificationEmail = (userEmail, token) => {
-  const url = `http://localhost:8080/verify-email?token=${encodeURIComponent(token)}`;
+  const url = `http://localhost:8080/verify-email?token=${encodeURIComponent(
+    token
+  )}`;
   const mailOptions = {
     from: process.env.EMAIL_USER,
     to: userEmail,
@@ -130,7 +132,8 @@ app.get("/verify-email", async (req, res) => {
     // Here you would normally verify the token and find the user associated with it
     // For simplicity, let's assume the token is the user's email
 
-    const updateQuery = "UPDATE users SET is_verified = TRUE WHERE token = $1 RETURNING email";
+    const updateQuery =
+      "UPDATE users SET is_verified = TRUE WHERE token = $1 RETURNING email";
     const updateResult = await client.query(updateQuery, [token]);
 
     if (updateResult.rowCount === 0) {
