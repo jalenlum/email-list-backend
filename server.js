@@ -62,6 +62,19 @@ const sendVerificationEmail = (userEmail, token) => {
   });
 };
 
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers["authorization"];
+  const token = authHeader && authHeader.split(" ")[1];
+
+  if (!token) return res.sendStatus(401);
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.user = user;
+    next();
+  });
+};
+
 app.post("/signup", async (req, res) => {
   const { username, email, password } = req.body;
 
@@ -190,9 +203,61 @@ app.post("/signin", async (req, res) => {
     const token = jwt.sign({ userId: user.id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
-    res.status(200).json({ token });
+
+    const now = new Date();
+    now.setHours(now.getHours() + 1);
+
+    res
+      .status(200)
+      .json({ token, expires: now.toISOString(), status: "Success" });
   } catch (err) {
     console.error("Error signing in:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.delete("/delete-user/:id", authenticateToken, async (req, res) => {
+  const userId = req.params.id;
+
+  if (req.user.userId !== parseInt(userId)) {
+    return res.status(403).json({ message: "Unauthorized" });
+  }
+
+  try {
+    const deleteQuery = "DELETE FROM users WHERE id = $1";
+    await client.query(deleteQuery, [userId]);
+
+    res.status(200).json({ message: "User deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting user:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
+
+app.post("/create-project", authenticateToken, async (req, res) => {
+  const { project_name, description } = req.body;
+  const userId = req.user.userId;
+
+  if (!project_name) {
+    return res.status(400).json({ message: "Project name is required" });
+  }
+
+  try {
+    const insertProjectQuery = `
+      INSERT INTO projects (user_id, project_name, description, created_at)
+      VALUES ($1, $2, $3, NOW())
+      RETURNING id, project_name, description, created_at
+    `;
+    const insertProjectResult = await client.query(insertProjectQuery, [
+      userId,
+      project_name,
+      description,
+    ]);
+
+    const newProject = insertProjectResult.rows[0];
+    res.status(201).json(newProject);
+  } catch (err) {
+    console.error("Error creating project:", err);
     res.status(500).json({ message: "Internal server error" });
   }
 });
