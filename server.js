@@ -147,9 +147,6 @@ app.get("/verify-email", async (req, res) => {
   }
 
   try {
-    // Here you would normally verify the token and find the user associated with it
-    // For simplicity, let's assume the token is the user's email
-
     const updateQuery =
       "UPDATE users SET is_verified = TRUE WHERE token = $1 RETURNING email";
     const updateResult = await client.query(updateQuery, [token]);
@@ -222,14 +219,22 @@ app.post("/signin", async (req, res) => {
 });
 
 app.delete("/delete-user", authenticateToken, async (req, res) => {
-  const userId = req.userId;
-
   try {
-    const deleteUserQuery = "DELETE FROM users WHERE id = $1";
-    await client.query(deleteUserQuery, [userId]);
+    await client.query("BEGIN");
 
-    res.status(200).json({ message: "User deleted successfully" });
+    const deleteProjectsQuery = "DELETE FROM projects WHERE user_id = $1";
+    await client.query(deleteProjectsQuery, [req.user.userId]);
+
+    const deleteUserQuery = "DELETE FROM users WHERE id = $1";
+    await client.query(deleteUserQuery, [req.user.userId]);
+
+    await client.query("COMMIT");
+
+    res
+      .status(200)
+      .json({ message: "User and associated projects deleted successfully" });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Error deleting user:", err);
     res.status(500).json({ message: "Internal server error" });
   }
