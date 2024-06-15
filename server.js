@@ -6,6 +6,7 @@ const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 const crypto = require("crypto");
 const dotenv = require("dotenv");
+const { v4: uuidv4 } = require("uuid");
 const app = express();
 
 dotenv.config();
@@ -110,13 +111,17 @@ app.post("/signup", async (req, res) => {
     const passwordHash = await bcrypt.hash(password, 13);
     const token = crypto.randomBytes(32).toString("hex");
 
+    // Generate UUID for the new user
+    const userId = uuidv4();
+
     // Inserts user into the database
     const insertUserQuery = `
-    INSERT INTO users (username, email, password_hash, created_at, is_verified, token)
-    VALUES ($1, $2, $3, NOW(), FALSE, $4)
+    INSERT INTO users (id, username, email, password_hash, created_at, is_verified, token)
+    VALUES ($1, $2, $3, $4, NOW(), FALSE, $5)
     RETURNING id, username, email, created_at
   `;
     const insertUserResult = await client.query(insertUserQuery, [
+      userId,
       username,
       email,
       passwordHash,
@@ -216,16 +221,12 @@ app.post("/signin", async (req, res) => {
   }
 });
 
-app.delete("/delete-user/:id", authenticateToken, async (req, res) => {
-  const userId = req.params.id;
-
-  if (req.user.userId !== parseInt(userId)) {
-    return res.status(403).json({ message: "Unauthorized" });
-  }
+app.delete("/delete-user", authenticateToken, async (req, res) => {
+  const userId = req.userId;
 
   try {
-    const deleteQuery = "DELETE FROM users WHERE id = $1";
-    await client.query(deleteQuery, [userId]);
+    const deleteUserQuery = "DELETE FROM users WHERE id = $1";
+    await client.query(deleteUserQuery, [userId]);
 
     res.status(200).json({ message: "User deleted successfully" });
   } catch (err) {
@@ -236,7 +237,7 @@ app.delete("/delete-user/:id", authenticateToken, async (req, res) => {
 
 app.post("/create-project", authenticateToken, async (req, res) => {
   const { project_name, description } = req.body;
-  const userId = req.user.userId;
+  const userId = req.user.userId; // Extracted from JWT by the middleware
 
   if (!project_name) {
     return res.status(400).json({ message: "Project name is required" });
