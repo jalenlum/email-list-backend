@@ -296,3 +296,52 @@ app.delete("/delete-project/:id", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+app.post("/collect-email/:projectId", async (req, res) => {
+  const { projectId } = req.params;
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ message: "Email is required" });
+  }
+
+  try {
+    const checkProjectQuery = "SELECT * FROM projects WHERE id = $1";
+    const checkProjectResult = await client.query(checkProjectQuery, [
+      projectId,
+    ]);
+
+    if (checkProjectResult.rows.length === 0) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+
+    const checkEmailQuery =
+      "SELECT * FROM project_emails WHERE project_id = $1 AND email = $2";
+    const checkEmailResult = await client.query(checkEmailQuery, [
+      projectId,
+      email,
+    ]);
+
+    if (checkEmailResult.rows.length > 0) {
+      return res
+        .status(400)
+        .json({ message: "Email already associated with this project" });
+    }
+
+    const insertEmailQuery = `
+      INSERT INTO project_emails (project_id, email)
+      VALUES ($1, $2)
+      RETURNING id, project_id, email, added_at
+    `;
+    const insertEmailResult = await client.query(insertEmailQuery, [
+      projectId,
+      email,
+    ]);
+
+    const newEmail = insertEmailResult.rows[0];
+    res.status(201).json(newEmail);
+  } catch (err) {
+    console.error("Error collecting email:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
