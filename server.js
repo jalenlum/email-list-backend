@@ -219,20 +219,30 @@ app.post("/signin", async (req, res) => {
 });
 
 app.delete("/delete-user", authenticateToken, async (req, res) => {
+  const userId = req.user.userId;
+
   try {
     await client.query("BEGIN");
 
+    const deleteProjectEmailsQuery = `
+      DELETE FROM project_emails
+      WHERE project_id IN (
+        SELECT id FROM projects WHERE user_id = $1
+      )
+    `;
+    await client.query(deleteProjectEmailsQuery, [userId]);
+
     const deleteProjectsQuery = "DELETE FROM projects WHERE user_id = $1";
-    await client.query(deleteProjectsQuery, [req.user.userId]);
+    await client.query(deleteProjectsQuery, [userId]);
 
     const deleteUserQuery = "DELETE FROM users WHERE id = $1";
-    await client.query(deleteUserQuery, [req.user.userId]);
+    await client.query(deleteUserQuery, [userId]);
 
     await client.query("COMMIT");
 
-    res
-      .status(200)
-      .json({ message: "User and associated projects deleted successfully" });
+    res.status(200).json({
+      message: "User and associated projects and emails deleted successfully",
+    });
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Error deleting user:", err);
@@ -273,25 +283,33 @@ app.delete("/delete-project/:id", authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
   try {
-    const checkProjectQuery =
-      "SELECT * FROM projects WHERE id = $1 AND user_id = $2";
-    const checkProjectResult = await client.query(checkProjectQuery, [
+    await client.query("BEGIN");
+
+    const deleteProjectEmailsQuery =
+      "DELETE FROM project_emails WHERE project_id = $1";
+    await client.query(deleteProjectEmailsQuery, [projectId]);
+
+    const deleteProjectQuery =
+      "DELETE FROM projects WHERE id = $1 AND user_id = $2";
+    const deleteProjectResult = await client.query(deleteProjectQuery, [
       projectId,
       userId,
     ]);
 
-    if (checkProjectResult.rows.length === 0) {
+    if (deleteProjectResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return res
         .status(404)
         .json({ message: "Project not found or not owned by the user" });
     }
 
-    const deleteProjectQuery =
-      "DELETE FROM projects WHERE id = $1 AND user_id = $2";
-    await client.query(deleteProjectQuery, [projectId, userId]);
+    await client.query("COMMIT");
 
-    res.status(200).json({ message: "Project deleted successfully" });
+    res
+      .status(200)
+      .json({ message: "Project and associated emails deleted successfully" });
   } catch (err) {
+    await client.query("ROLLBACK");
     console.error("Error deleting project:", err);
     res.status(500).json({ message: "Internal server error" });
   }
