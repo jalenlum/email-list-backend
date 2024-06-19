@@ -363,3 +363,31 @@ app.post("/collect-email/:projectId", async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+app.get("/emails/:projectId", authenticateToken, async (req, res) => {
+  const { projectId } = req.params;
+  const userId = req.user.userId;
+
+  try {
+    const checkProjectQuery =
+      "SELECT * FROM projects WHERE id = $1 AND user_id = $2";
+    const checkProjectResult = await client.query(checkProjectQuery, [
+      projectId,
+      userId,
+    ]);
+
+    if (checkProjectResult.rows.length === 0) {
+      return res
+        .status(404)
+        .json({ message: "Project not found or not owned by the user" });
+    }
+
+    const getEmailsQuery = "SELECT * FROM project_emails WHERE project_id = $1";
+    const getEmailsResult = await client.query(getEmailsQuery, [projectId]);
+
+    res.status(200).json(getEmailsResult.rows);
+  } catch (err) {
+    console.error("Error retrieving emails:", err);
+    res.status(500).json({ message: "Internal server error" });
+  }
+});
