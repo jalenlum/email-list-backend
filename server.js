@@ -391,3 +391,45 @@ app.get("/emails/:projectId", authenticateToken, async (req, res) => {
     res.status(500).json({ message: "Internal server error" });
   }
 });
+
+app.delete(
+  "/projects/:projectId/emails/:emailId",
+  authenticateToken,
+  async (req, res) => {
+    const { projectId, emailId } = req.params;
+    const userId = req.user.userId;
+
+    try {
+      const checkProjectQuery =
+        "SELECT * FROM projects WHERE id = $1 AND user_id = $2";
+      const checkProjectResult = await client.query(checkProjectQuery, [
+        projectId,
+        userId,
+      ]);
+
+      if (checkProjectResult.rows.length === 0) {
+        return res
+          .status(404)
+          .json({ message: "Project not found or not owned by the user" });
+      }
+
+      const deleteEmailQuery =
+        "DELETE FROM project_emails WHERE id = $1 AND project_id = $2";
+      const deleteEmailResult = await client.query(deleteEmailQuery, [
+        emailId,
+        projectId,
+      ]);
+
+      if (deleteEmailResult.rowCount === 0) {
+        return res.status(404).json({
+          message: "Email not found or not associated with this project",
+        });
+      }
+
+      res.status(200).json({ message: "Email deleted successfully" });
+    } catch (err) {
+      console.error("Error deleting email:", err);
+      res.status(500).json({ message: "Internal server error" });
+    }
+  }
+);
