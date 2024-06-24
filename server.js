@@ -76,7 +76,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-app.post("/signup", async (req, res) => {
+app.post("/users/signup", async (req, res) => {
   const { username, email, password } = req.body;
 
   // Checks to see if all fields are filled out
@@ -162,7 +162,7 @@ app.get("/verify-email", async (req, res) => {
   }
 });
 
-app.post("/signin", async (req, res) => {
+app.post("/users/signin", async (req, res) => {
   const { inputName, password } = req.body;
 
   if (!inputName || !password) {
@@ -218,7 +218,7 @@ app.post("/signin", async (req, res) => {
   }
 });
 
-app.delete("/delete-user", authenticateToken, async (req, res) => {
+app.delete("/users/delete", authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
   try {
@@ -250,7 +250,7 @@ app.delete("/delete-user", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/create-project", authenticateToken, async (req, res) => {
+app.post("/projects/create", authenticateToken, async (req, res) => {
   const { project_name, description } = req.body;
   const userId = req.user.userId; // Extracted from JWT by the middleware
 
@@ -278,7 +278,7 @@ app.post("/create-project", authenticateToken, async (req, res) => {
   }
 });
 
-app.delete("/delete-project/:id", authenticateToken, async (req, res) => {
+app.delete("/projects/delete/:id", authenticateToken, async (req, res) => {
   const projectId = req.params.id;
   const userId = req.user.userId;
 
@@ -315,7 +315,7 @@ app.delete("/delete-project/:id", authenticateToken, async (req, res) => {
   }
 });
 
-app.post("/collect-email/:projectId", async (req, res) => {
+app.post("/send-email/:projectId", async (req, res) => {
   const { projectId } = req.params;
   const { email } = req.body;
 
@@ -364,7 +364,7 @@ app.post("/collect-email/:projectId", async (req, res) => {
   }
 });
 
-app.get("/emails/:projectId", authenticateToken, async (req, res) => {
+app.get("/emails/get/:projectId", authenticateToken, async (req, res) => {
   const { projectId } = req.params;
   const userId = req.user.userId;
 
@@ -393,7 +393,7 @@ app.get("/emails/:projectId", authenticateToken, async (req, res) => {
 });
 
 app.delete(
-  "/projects/:projectId/emails/:emailId",
+  "/projects/:projectId/emails/delete/:emailId",
   authenticateToken,
   async (req, res) => {
     const { projectId, emailId } = req.params;
