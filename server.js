@@ -21,6 +21,7 @@ app.listen(port, () => {
 });
 
 app.get("/", (req, res) => {
+  console.log("test");
   res.json("Bowow");
 });
 
