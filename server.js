@@ -45,7 +45,7 @@ const transporter = nodemailer.createTransport({
 });
 
 const sendVerificationEmail = (userEmail, token) => {
-  const url = `http://localhost:8080/verify-email?token=${encodeURIComponent(
+  const url = `https://email-list-0187bfa72de5.herokuapp.com/verify-email?token=${encodeURIComponent(
     token
   )}`;
   const mailOptions = {
