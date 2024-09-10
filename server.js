@@ -20,11 +20,13 @@ app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
 
+// Root endpoint to test if the server is working
 app.get("/", (req, res) => {
   console.log("test");
   res.json("Bowow");
 });
 
+// Database connection configuration
 const client = new Client({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -35,6 +37,7 @@ const client = new Client({
 
 client.connect();
 
+// Nodemailer transporter configuration for sending emails
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
@@ -44,6 +47,7 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+// Function to send a verification email
 const sendVerificationEmail = (userEmail, token) => {
   const url = `https://email-list-0187bfa72de5.herokuapp.com/verify-email?token=${encodeURIComponent(
     token
@@ -64,6 +68,7 @@ const sendVerificationEmail = (userEmail, token) => {
   });
 };
 
+// Middleware to authenticate a JWT token
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
@@ -77,6 +82,7 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
+// Endpoint for user signup, including email verification process
 app.post("/users/signup", async (req, res) => {
   const { username, email, password } = req.body;
 
@@ -140,6 +146,7 @@ app.post("/users/signup", async (req, res) => {
   }
 });
 
+// Endpoint to verify the user's email using a token
 app.get("/verify-email", async (req, res) => {
   const { token } = req.query;
 
@@ -163,6 +170,7 @@ app.get("/verify-email", async (req, res) => {
   }
 });
 
+// Endpoint for user signin with username/email and password
 app.post("/users/signin", async (req, res) => {
   const { inputName, password } = req.body;
 
@@ -219,6 +227,7 @@ app.post("/users/signin", async (req, res) => {
   }
 });
 
+// Endpoint to delete a user and their associated projects/emails
 app.delete("/users/delete", authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
@@ -251,6 +260,7 @@ app.delete("/users/delete", authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint to create a new project for a user
 app.post("/projects/create", authenticateToken, async (req, res) => {
   const { project_name, description } = req.body;
   const userId = req.user.userId; // Extracted from JWT by the middleware
@@ -279,6 +289,7 @@ app.post("/projects/create", authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint to delete a project and its associated emails
 app.delete("/projects/delete/:id", authenticateToken, async (req, res) => {
   const projectId = req.params.id;
   const userId = req.user.userId;
@@ -316,6 +327,7 @@ app.delete("/projects/delete/:id", authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint to associate an email with a project
 app.post("/send-email/:projectId", async (req, res) => {
   const { projectId } = req.params;
   const { email } = req.body;
@@ -365,6 +377,7 @@ app.post("/send-email/:projectId", async (req, res) => {
   }
 });
 
+// Endpoint to retrieve emails associated with a project
 app.get("/emails/get/:projectId", authenticateToken, async (req, res) => {
   const { projectId } = req.params;
   const userId = req.user.userId;
@@ -393,6 +406,7 @@ app.get("/emails/get/:projectId", authenticateToken, async (req, res) => {
   }
 });
 
+// Endpoint to delete a specific email from a project
 app.delete(
   "/projects/:projectId/emails/delete/:emailId",
   authenticateToken,
