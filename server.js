@@ -20,13 +20,23 @@ app.listen(port, () => {
   console.log(`Server listening on port ${port}`);
 });
 
-// Root endpoint to test if the server is working
+/**
+ * Root endpoint to check if the server is running.
+ *
+ * @return {JSON}   A test message to confirm server status
+ */
 app.get("/", (req, res) => {
   console.log("test");
   res.json("Bowow");
 });
 
-// Database connection configuration
+// Database connection
+/**
+ * Establishes a connection to the PostgreSQL database.
+ * 
+ * Input: No direct input (uses environment variables for DB credentials).
+ * Output: Establishes a persistent connection to the database.
+ */
 const client = new Client({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -37,7 +47,12 @@ const client = new Client({
 
 client.connect();
 
-// Nodemailer transporter configuration for sending emails
+/**
+ * Configures nodemailer to send verification emails.
+ * 
+ * Input: Uses environment variables to set up SMTP server details and authentication.
+ * Output: Returns a configured nodemailer transporter for sending emails.
+ */
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
@@ -47,7 +62,13 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-// Function to send a verification email
+/**
+ * Sends a verification email to the user after signup.
+ *
+ * @param {string} userEmail   The email address of the user
+ * @param {string} token       The email verification token to include in the email
+ * @return {void}              Sends the verification email and logs the result or error
+ */
 const sendVerificationEmail = (userEmail, token) => {
   const url = `https://email-list-0187bfa72de5.herokuapp.com/verify-email?token=${encodeURIComponent(
     token
@@ -68,7 +89,14 @@ const sendVerificationEmail = (userEmail, token) => {
   });
 };
 
-// Middleware to authenticate a JWT token
+/**
+ * Middleware to authenticate users using JWT tokens.
+ *
+ * @param {object} req   The HTTP request object
+ * @param {object} res   The HTTP response object
+ * @param {function} next   The next middleware function to execute if authenticated
+ * @return {void}        Proceeds to the next middleware if token is valid, or returns an error status
+ */
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers["authorization"];
   const token = authHeader && authHeader.split(" ")[1];
@@ -82,7 +110,13 @@ const authenticateToken = (req, res, next) => {
   });
 };
 
-// Endpoint for user signup, including email verification process
+/**
+ * Registers a new user and sends a verification email.
+ * 
+ * @param {object} req   The HTTP request object, containing username, email, and password in the body
+ * @param {object} res   The HTTP response object
+ * @return {JSON}        A JSON object containing the new user's ID, username, email, and creation date and time
+ */
 app.post("/users/signup", async (req, res) => {
   const { username, email, password } = req.body;
 
@@ -146,7 +180,13 @@ app.post("/users/signup", async (req, res) => {
   }
 });
 
-// Endpoint to verify the user's email using a token
+/**
+ * Verifies a user's email using a token sent in the verification email.
+ * 
+ * @param {object} req   The HTTP request object, containing the token in the query
+ * @param {object} res   The HTTP response object
+ * @return {JSON}        A message indicating whether the email verification was successful
+ */
 app.get("/verify-email", async (req, res) => {
   const { token } = req.query;
 
@@ -170,7 +210,13 @@ app.get("/verify-email", async (req, res) => {
   }
 });
 
-// Endpoint for user signin with username/email and password
+/**
+ * Authenticates a user by checking their email/username and password.
+ * 
+ * @param {object} req   The HTTP request object, containing inputName (email or username) and password in the body
+ * @param {object} res   The HTTP response object
+ * @return {JSON}        A JWT token if successful, or an error message if authentication fails
+ */
 app.post("/users/signin", async (req, res) => {
   const { inputName, password } = req.body;
 
@@ -227,7 +273,13 @@ app.post("/users/signin", async (req, res) => {
   }
 });
 
-// Endpoint to delete a user and their associated projects/emails
+/**
+ * Deletes a user along with all their associated projects and project emails.
+ * 
+ * @param {object} req   The HTTP request object, with the authenticated user attached via JWT
+ * @param {object} res   The HTTP response object
+ * @return {JSON}        A message indicating successful deletion, or an error message on failure
+ */
 app.delete("/users/delete", authenticateToken, async (req, res) => {
   const userId = req.user.userId;
 
@@ -260,7 +312,13 @@ app.delete("/users/delete", authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to create a new project for a user
+/**
+ * Creates a new project for the authenticated user.
+ * 
+ * @param {object} req   The HTTP request object, with the project_name and description in the body
+ * @param {object} res   The HTTP response object
+ * @return {JSON}        The newly created project's ID, name, description, and creation date
+ */
 app.post("/projects/create", authenticateToken, async (req, res) => {
   const { project_name, description } = req.body;
   const userId = req.user.userId; // Extracted from JWT by the middleware
@@ -289,7 +347,13 @@ app.post("/projects/create", authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to delete a project and its associated emails
+/**
+ * Deletes a project and its associated emails.
+ * 
+ * @param {object} req   The HTTP request object, with project ID in the URL parameters
+ * @param {object} res   The HTTP response object
+ * @return {JSON}        A success message or an error message if the project is not found
+ */
 app.delete("/projects/delete/:id", authenticateToken, async (req, res) => {
   const projectId = req.params.id;
   const userId = req.user.userId;
@@ -327,7 +391,13 @@ app.delete("/projects/delete/:id", authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to associate an email with a project
+/**
+ * Allows users to add emails to a project.
+ * 
+ * @param {object} req   The HTTP request object, with project ID in the URL parameters and email in the body
+ * @param {object} res   The HTTP response object
+ * @return {JSON}        The newly added email for the project
+ */
 app.post("/send-email/:projectId", async (req, res) => {
   const { projectId } = req.params;
   const { email } = req.body;
@@ -377,7 +447,13 @@ app.post("/send-email/:projectId", async (req, res) => {
   }
 });
 
-// Endpoint to retrieve emails associated with a project
+/**
+ * Retrieves all emails associated with a specific project.
+ * 
+ * @param {object} req   The HTTP request object, with project ID in the URL parameters
+ * @param {object} res   The HTTP response object
+ * @return {JSON}        A list of emails associated with the specified project
+ */
 app.get("/emails/get/:projectId", authenticateToken, async (req, res) => {
   const { projectId } = req.params;
   const userId = req.user.userId;
@@ -406,7 +482,13 @@ app.get("/emails/get/:projectId", authenticateToken, async (req, res) => {
   }
 });
 
-// Endpoint to delete a specific email from a project
+/**
+ * Deletes a specific email from a project.
+ * 
+ * @param {object} req   The HTTP request object, with project ID and email ID in the URL parameters
+ * @param {object} res   The HTTP response object
+ * @return {JSON}        A success message or an error message if the email is not found
+ */
 app.delete(
   "/projects/:projectId/emails/delete/:emailId",
   authenticateToken,
