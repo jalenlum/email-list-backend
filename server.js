@@ -1,3 +1,22 @@
+/**
+ * This code implements a RESTful API using Node.js, Express, and PostgreSQL. 
+ * The API provides user authentication with JWT, user registration with email 
+ * verification, project management, and the ability to associate and manage emails 
+ * with projects. Users can sign up, verify their email, sign in, create and delete 
+ * projects, and manage project-related emails. The system also includes secure 
+ * password handling with bcrypt, JWT-based authentication, and email sending using 
+ * nodemailer.
+ * 
+ * Key Features:
+ * - User registration with email verification
+ * - JWT-based user authentication
+ * - Project creation and deletion
+ * - Email association and management within projects
+ * - Secure password storage with bcrypt
+ * 
+ * Author: Jalen Lum
+ * Date: 09/09/2024
+ */
 const express = require("express");
 const { Client } = require("pg");
 const bcrypt = require("bcrypt");
